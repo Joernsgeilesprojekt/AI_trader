@@ -1,0 +1,9 @@
+torch>=2.0
+pandas>=1.5
+numpy>=1.23
+yfinance>=0.2.18
+requests>=2.31
+streamlit>=1.30
+nltk>=3.8
+sentence-transformers>=2.2.2
+scikit-learn>=1.3
