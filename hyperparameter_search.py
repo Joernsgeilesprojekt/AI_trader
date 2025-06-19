@@ -1,6 +1,7 @@
-"""Run end-to-end training using prices and news."""
+"""Simple grid search for training hyperparameters."""
 from __future__ import annotations
 
+import itertools
 import os
 from datetime import datetime
 
@@ -20,8 +21,6 @@ def main() -> None:
     symbol = os.environ.get("SYMBOL", "AAPL")
     start = os.environ.get("START", "2024-01-01")
     end = os.environ.get("END", datetime.utcnow().strftime("%Y-%m-%d"))
-    news_query = os.environ.get("NEWS_QUERY", symbol)
-    fred_series = os.environ.get("FRED_SERIES")
     api_key = os.environ.get("NEWS_API_KEY")
     if not api_key:
         raise SystemExit("NEWS_API_KEY environment variable required")
@@ -31,14 +30,8 @@ def main() -> None:
     prices["RSI"] = rsi(prices["Close"]).fillna(0.0)
     macd_df = macd(prices["Close"])
     prices = prices.join(macd_df).fillna(0.0)
-    if fred_series:
-        try:
-            macro = loader.load_macro(fred_series, start, end)
-            prices = prices.join(macro.rename(fred_series)).fillna(method="ffill")
-        except Exception as exc:
-            print(f"Failed to fetch macro data: {exc}")
-    news = loader.fetch_news(news_query, start, end, limit=100)
 
+    news = loader.fetch_news(symbol, start, end, limit=100)
     texts = [clean_text(n.title + " " + n.description) for n in news]
     embeddings = embed_texts(texts)
     news_df = pd.DataFrame(embeddings, index=[n.published_at for n in news])
@@ -48,12 +41,25 @@ def main() -> None:
     y = data["Close"].shift(-1).dropna().values
 
     price_dim = prices.shape[1]
-    model = PriceNewsModel(price_dim=price_dim, news_dim=embeddings.shape[1])
-    train_model(model, X, y, TrainConfig(epochs=3))
+    news_dim = embeddings.shape[1]
 
-    os.makedirs("models", exist_ok=True)
-    torch.save(model.state_dict(), "models/model.pt")
-    print("Model saved to models/model.pt")
+    hidden_dims = [32, 64]
+    lrs = [1e-3, 5e-4]
+    window_sizes = [30, 60]
+
+    results = []
+    for hd, lr, win in itertools.product(hidden_dims, lrs, window_sizes):
+        model = PriceNewsModel(price_dim=price_dim, news_dim=news_dim, hidden_dim=hd)
+        cfg = TrainConfig(lr=lr, epochs=2)
+        train_model(model, X[-win:], y[-win:], cfg)
+        preds = model(torch.tensor(X[-win:], dtype=torch.float32)).detach().numpy().squeeze()
+        mse = ((preds - y[-win:]) ** 2).mean()
+        results.append({"hidden_dim": hd, "lr": lr, "window": win, "mse": mse})
+        print(f"hd={hd}, lr={lr}, window={win}, mse={mse:.4f}")
+
+    df = pd.DataFrame(results)
+    df.to_csv("hyperparam_results.csv", index=False)
+    print("Saved results to hyperparam_results.csv")
 
 
 if __name__ == "__main__":
