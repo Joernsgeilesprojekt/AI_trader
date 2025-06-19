@@ -8,6 +8,8 @@ from typing import List, Optional
 import pandas as pd
 import requests
 import yfinance as yf
+from pandas_datareader import data as pdr
+
 
 
 @dataclass
@@ -51,3 +53,7 @@ class DataLoader:
                 )
             )
         return articles
+
+    def load_macro(self, series_id: str, start: str, end: str) -> pd.Series:
+        """Load macroeconomic series from FRED."""
+        return pdr.DataReader(series_id, "fred", start, end)

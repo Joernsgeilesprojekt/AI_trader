@@ -10,6 +10,8 @@ from src.news_processing import clean_text, sentiment_score
 from src.predictor import load_model, predict
 from src.feature_fusion import combine_daily
 from src.model import PriceNewsModel
+from src.indicators import rsi, macd
+from src.backtester import backtest, StrategyConfig
 
 st.title("AI Trader Dashboard")
 api_key = st.sidebar.text_input("News API Key", value=os.environ.get("NEWS_API_KEY", ""))
@@ -21,6 +23,10 @@ if api_key:
     end = datetime.utcnow().date()
     start = end - timedelta(days=30)
     prices = loader.load_prices(symbol, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+    prices["RSI"] = rsi(prices["Close"]).fillna(0.0)
+    macd_df = macd(prices["Close"])
+    prices = prices.join(macd_df).fillna(0.0)
+
     news = loader.fetch_news(query, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), limit=20)
 
     st.subheader("Price Chart")
@@ -48,11 +54,25 @@ if api_key:
     data = combine_daily(prices, emb_df)
     X = data.values[-1:]
 
+    price_dim = prices.shape[1]
+    model = PriceNewsModel(price_dim=price_dim, news_dim=data.shape[1] - price_dim)
+
     model = PriceNewsModel(price_dim=5, news_dim=data.shape[1] - 5)
     try:
         load_model("models/model.pt", model)
         pred = predict(model, X)[0]
         st.write(f"Predicted next close: {pred:.2f}")
+
+        preds_hist = predict(model, data.values[:-1])
+        bt = backtest(prices["Close"].values[: len(preds_hist)], preds_hist, strategy=StrategyConfig())
+        st.subheader("Backtest Metrics")
+        st.write(f"Sharpe Ratio: {bt.sharpe:.2f}")
+        st.write(f"Cumulative Profit: {bt.profit:.2f}")
+        st.write(f"Max Drawdown: {bt.max_drawdown:.2f}")
+        st.write(f"Win/Loss Ratio: {bt.win_loss_ratio:.2f}")
+        import numpy as np
+        cumulative = np.cumsum(bt.returns)
+        st.line_chart(cumulative)
     except FileNotFoundError:
         st.warning("Trained model not found. Run run_training.py first.")
 else:
