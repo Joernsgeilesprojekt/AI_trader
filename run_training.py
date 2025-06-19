@@ -36,6 +36,18 @@ def run_training(
             prices = prices.join(macro.rename(fred_series)).fillna(method="ffill")
         except Exception as exc:
             print(f"Failed to fetch macro data: {exc}")
+
+def main() -> None:
+    symbol = os.environ.get("SYMBOL", "AAPL")
+    start = os.environ.get("START", "2024-01-01")
+    end = os.environ.get("END", datetime.utcnow().strftime("%Y-%m-%d"))
+    news_query = os.environ.get("NEWS_QUERY", symbol)
+    api_key = os.environ.get("NEWS_API_KEY")
+    if not api_key:
+        raise SystemExit("NEWS_API_KEY environment variable required")
+
+    loader = DataLoader(news_api_key=api_key)
+    prices = loader.load_prices(symbol, start, end)
     news = loader.fetch_news(news_query, start, end, limit=100)
 
     texts = [clean_text(n.title + " " + n.description) for n in news]
@@ -48,6 +60,7 @@ def run_training(
 
     price_dim = prices.shape[1]
     model = PriceNewsModel(price_dim=price_dim, news_dim=embeddings.shape[1])
+    model = PriceNewsModel(price_dim=5, news_dim=embeddings.shape[1])
     train_model(model, X, y, TrainConfig(epochs=3))
 
     os.makedirs("models", exist_ok=True)

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 import numpy as np
 
@@ -33,6 +34,11 @@ def backtest(
     strategy: StrategyConfig | None = None,
 ) -> BacktestResult:
     """Backtest predictions using a configurable strategy."""
+
+
+
+def backtest(prices: Iterable[float], predictions: Iterable[float]) -> BacktestResult:
+    """Simple backtesting using daily close prices and predicted next-day closes."""
     prices = np.asarray(prices)
     preds = np.asarray(predictions)
     if len(prices) != len(preds):
@@ -42,6 +48,9 @@ def backtest(
         strategy = StrategyConfig()
 
     daily_returns = []
+
+    daily_returns = []
+    position = 0.0
     cash = 0.0
     for i in range(len(prices) - 1):
         today_price = prices[i]
@@ -60,6 +69,12 @@ def backtest(
         else:
             daily_return = 0.0
 
+
+        if preds[i] > today_price:
+            # go long for one day
+            daily_return = next_price - today_price
+        else:
+            daily_return = 0.0
         cash += daily_return
         daily_returns.append(daily_return)
     returns = np.array(daily_returns)
@@ -70,6 +85,7 @@ def backtest(
     win_trades = (returns > 0).sum()
     loss_trades = (returns < 0).sum()
     win_loss_ratio = win_trades / loss_trades if loss_trades else float("inf")
+
     cumulative = np.cumsum(returns)
     running_max = np.maximum.accumulate(cumulative)
     drawdowns = running_max - cumulative
@@ -84,3 +100,8 @@ def backtest(
 
 
 __all__ = ["backtest", "BacktestResult", "StrategyConfig"]
+
+    return BacktestResult(sharpe=sharpe, profit=cash, max_drawdown=max_drawdown, returns=daily_returns)
+
+
+__all__ = ["backtest", "BacktestResult"]

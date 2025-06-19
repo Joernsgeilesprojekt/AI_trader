@@ -18,6 +18,15 @@ from src.indicators import rsi, macd
 
 def predict_latest(symbol: str, news_query: str, api_key: str) -> float:
 
+
+
+def main() -> None:
+    symbol = os.environ.get("SYMBOL", "AAPL")
+    news_query = os.environ.get("NEWS_QUERY", symbol)
+    api_key = os.environ.get("NEWS_API_KEY")
+    if not api_key:
+        raise SystemExit("NEWS_API_KEY environment variable required")
+
     end = datetime.utcnow().date()
     start = (end - timedelta(days=30)).strftime("%Y-%m-%d")
     end_str = end.strftime("%Y-%m-%d")
@@ -54,6 +63,10 @@ def main() -> None:
         raise SystemExit("NEWS_API_KEY environment variable required")
 
     pred = predict_latest(symbol, news_query, api_key)
+
+    model = PriceNewsModel(price_dim=5, news_dim=data.shape[1] - 5)
+    load_model("models/model.pt", model)
+    pred = predict(model, X)[0]
     print(f"Predicted next close for {symbol}: {pred:.2f}")
 
 

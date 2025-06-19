@@ -26,6 +26,7 @@ if api_key:
     prices["RSI"] = rsi(prices["Close"]).fillna(0.0)
     macd_df = macd(prices["Close"])
     prices = prices.join(macd_df).fillna(0.0)
+
     news = loader.fetch_news(query, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"), limit=20)
 
     st.subheader("Price Chart")
@@ -55,6 +56,8 @@ if api_key:
 
     price_dim = prices.shape[1]
     model = PriceNewsModel(price_dim=price_dim, news_dim=data.shape[1] - price_dim)
+
+    model = PriceNewsModel(price_dim=5, news_dim=data.shape[1] - 5)
     try:
         load_model("models/model.pt", model)
         pred = predict(model, X)[0]

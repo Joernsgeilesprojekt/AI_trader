@@ -12,6 +12,7 @@ This repository contains modular components for stock price prediction using his
 - `backtester.py` – evaluate predictions with Sharpe ratio, profit and drawdown.
 - `indicators.py` – calculate RSI and MACD indicators.
 
+
 ## Scripts
 - `run_training.py` – fetch data, train the model and save it to `models/model.pt`.
 - `run_prediction.py` – load the latest model and output a price forecast.
@@ -19,5 +20,13 @@ This repository contains modular components for stock price prediction using his
 - `daily_runner.py` – fetch data daily, make a prediction and log to CSV.
 - `app.py` – Streamlit dashboard showing prices, news sentiment, predictions and backtest metrics.
 - `gui.py` – Tkinter interface to train models, run predictions and execute backtests.
+
+- `app.py` – Streamlit dashboard showing prices, news sentiment and the latest prediction.
+Modules:
+- `data_loader.py` – utilities to fetch historical price data from Yahoo Finance and query news articles.
+- `news_processing.py` – text cleaning, sentiment analysis and embeddings.
+- `model.py` – PyTorch models for price only or price + news prediction.
+- `trainer.py` – training loops for the models.
+- `predictor.py` – simple inference utility.
 
 Example usage can be found within each module's docstrings.
